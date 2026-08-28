@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Application | PACD Research Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">My Application</span>
+      </div>
+    </header>
+
+    <main class="container subpage">
+      <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+      <h1>Track My Collaboration Application</h1>
+      <p class="desc">
+        Request a secure email sign-in link. After sign-in, only applications
+        submitted with your verified email address are shown.
+      </p>
+
+      <section class="card" id="login-card">
+        <div class="form-grid">
+          <label class="span-2">
+            Application email
+            <input id="application-email" type="email" autocomplete="email" required />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" id="send-link-btn" type="button">
+            Send secure sign-in link
+          </button>
+        </div>
+        <p class="tiny" id="login-message"></p>
+      </section>
+
+      <section id="application-content" style="display: none; margin-top: 1rem;">
+        <div class="section-headline-row">
+          <h2>Your applications</h2>
+          <button class="btn btn-outline" id="sign-out-btn" type="button">Sign out</button>
+        </div>
+        <div id="application-list"></div>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        escapeHtml,
+        siteUrl,
+        supabase,
+      } from "./supabase-client.js";
+
+      const loginCard = document.getElementById("login-card");
+      const content = document.getElementById("application-content");
+      const list = document.getElementById("application-list");
+      const message = document.getElementById("login-message");
+      const sendButton = document.getElementById("send-link-btn");
+
+      function renderApplication(item) {
+        const interests = (item.interests || []).map(escapeHtml).join(", ");
+        return `
+          <article class="card" style="margin-top: 1rem;">
+            <div class="section-headline-row">
+              <h3>${escapeHtml(item.name)}</h3>
+              <span class="badge ${escapeHtml(item.status)}">${escapeHtml(item.status.replace("_", " "))}</span>
+            </div>
+            <p><b>Role:</b> ${escapeHtml(item.professional_role)}</p>
+            <p><b>Institution:</b> ${escapeHtml(item.institution)}</p>
+            <p><b>Country / region:</b> ${escapeHtml(item.country_region)}</p>
+            <p><b>Interests:</b> ${interests || "—"}</p>
+            <p><b>Proposal:</b> ${escapeHtml(item.proposal)}</p>
+            ${
+              item.reviewer_notes
+                ? `<p><b>Reviewer note:</b> ${escapeHtml(item.reviewer_notes)}</p>`
+                : ""
+            }
+            <p class="tiny"><b>Submitted:</b> ${escapeHtml(
+              new Date(item.created_at).toLocaleString(),
+            )} · <b>Last update:</b> ${escapeHtml(
+              new Date(item.updated_at).toLocaleString(),
+            )}</p>
+          </article>
+        `;
+      }
+
+      async function loadApplications() {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session || !session.user.email) {
+          loginCard.style.display = "";
+          content.style.display = "none";
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("applications")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          message.textContent = error.message;
+          return;
+        }
+
+        loginCard.style.display = "none";
+        content.style.display = "";
+        list.innerHTML = data.length
+          ? data.map(renderApplication).join("")
+          : '<article class="card"><p>No application was found for this verified email address.</p></article>';
+      }
+
+      sendButton.addEventListener("click", async () => {
+        const email = document
+          .getElementById("application-email")
+          .value.trim()
+          .toLowerCase();
+        if (!email) {
+          message.textContent = "Please enter your application email.";
+          return;
+        }
+
+        sendButton.disabled = true;
+        message.textContent = "Sending…";
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: siteUrl("my-application.html"),
+            shouldCreateUser: true,
+          },
+        });
+        message.textContent = error
+          ? error.message
+          : "Check your inbox for the secure sign-in link.";
+        sendButton.disabled = false;
+      });
+
+      document.getElementById("sign-out-btn").addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.reload();
+      });
+
+      supabase.auth.onAuthStateChange(() => {
+        window.setTimeout(loadApplications, 0);
+      });
+      loadApplications();
+    </script>
+  </body>
+</html>

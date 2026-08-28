@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PACD Item | PACD Research Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Home &gt;&gt; Item Detail</span>
+      </div>
+    </header>
+
+    <main class="container subpage">
+      <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+      <h1 class="detail-page-title" id="page-title">Item Detail</h1>
+      <p class="desc" id="page-desc"></p>
+      <section class="detail-page-hero" id="detail-hero"></section>
+    </main>
+
+    <script type="module">
+      import {
+        assetUrl,
+        escapeHtml,
+        mapQuestionnaire,
+        mapResearch,
+        supabase,
+      } from "./supabase-client.js";
+
+      const params = new URLSearchParams(window.location.search);
+      const type = params.get("type");
+      const id = params.get("id");
+      const titleNode = document.getElementById("page-title");
+      const descNode = document.getElementById("page-desc");
+      const heroNode = document.getElementById("detail-hero");
+
+      async function loadItem() {
+        if (!id || !["frontier", "results", "questionnaires"].includes(type)) {
+          throw new Error("Missing or invalid item information.");
+        }
+
+        if (type === "questionnaires") {
+          const { data, error } = await supabase
+            .from("questionnaires")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+          if (error) throw error;
+          if (!data) throw new Error("Questionnaire not found.");
+          const item = mapQuestionnaire(data);
+          titleNode.textContent = item.title || "Questionnaire";
+          descNode.textContent = item.introText || item.audience || "";
+          heroNode.innerHTML = `
+            <div class="questionnaire-grid">
+              <img src="${escapeHtml(item.imageUrl || assetUrl("assets/survey-cover.png"))}" alt="${escapeHtml(item.title)}" />
+              <div class="questionnaire-info">
+                <div class="meta"><strong>Research name:</strong> ${escapeHtml(item.researchName || item.title)}</div>
+                <div class="meta"><strong>Main audience:</strong> ${escapeHtml(item.audience || "—")}</div>
+                <div class="meta"><strong>Introduction:</strong> ${escapeHtml(item.introText || "—")}</div>
+                <div class="meta"><strong>Participation:</strong> ${item.isPaid === "Yes" ? "Compensated" : "Voluntary"}</div>
+                <div class="meta"><strong>Estimated time:</strong> ${escapeHtml(item.estimatedTime || "—")}</div>
+                <div class="meta"><strong>Contact:</strong> ${escapeHtml(item.contactInfo || "—")}</div>
+                <div class="questionnaire-links">
+                  ${item.linkUrl ? `<a class="panel-link" href="${escapeHtml(item.linkUrl)}" target="_blank" rel="noreferrer noopener">Open questionnaire</a>` : ""}
+                </div>
+                ${item.qrUrl ? `<img class="questionnaire-qr" src="${escapeHtml(item.qrUrl)}" alt="Questionnaire QR code" />` : ""}
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("research_items")
+          .select("*")
+          .eq("id", id)
+          .eq("section", type)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("Research entry not found.");
+        const item = mapResearch(data);
+        titleNode.textContent = item.title || "Research entry";
+        descNode.textContent = item.journal || "";
+        heroNode.innerHTML = `
+          <img src="${escapeHtml(item.imageUrl || assetUrl("assets/home-1-logo.jpg"))}" alt="${escapeHtml(item.title)}" />
+          <div class="questionnaire-info">
+            <div class="meta"><strong>Journal:</strong> ${escapeHtml(item.journal || "—")}</div>
+            <div class="meta"><strong>Quartile:</strong> ${escapeHtml(item.quartile || "Not specified")}</div>
+            <div class="meta"><strong>Impact factor:</strong> ${escapeHtml(item.impactFactor || "Not specified")}</div>
+            <div class="meta"><strong>Lead authors / team:</strong> ${escapeHtml(item.authorsTeam || "—")}</div>
+            ${item.summary ? `<p>${escapeHtml(item.summary)}</p>` : ""}
+            ${item.doiUrl ? `<a class="panel-link" href="${escapeHtml(item.doiUrl)}" target="_blank" rel="noreferrer noopener">Open publication / DOI</a>` : ""}
+          </div>
+        `;
+      }
+
+      loadItem().catch((error) => {
+        descNode.textContent = error.message;
+        heroNode.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+      });
+    </script>
+  </body>
+</html>

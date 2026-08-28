@@ -1,0 +1,13 @@
+{
+  "name": "pacd-research-club",
+  "version": "2.0.0",
+  "private": true,
+  "description": "PACD Research Club static frontend for GitHub Pages with Supabase backend.",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve-static.mjs",
+    "dev": "node scripts/serve-static.mjs",
+    "check": "node scripts/check-static.mjs"
+  },
+  "license": "UNLICENSED"
+}

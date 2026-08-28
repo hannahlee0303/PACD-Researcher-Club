@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PACD Research | PACD Research Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Home &gt;&gt; PACD Research</span>
+      </div>
+    </header>
+
+    <main class="container subpage">
+      <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+      <h1 id="section-title">Research</h1>
+      <p class="desc" id="section-desc"></p>
+
+      <form class="section-search" id="section-search-form">
+        <input id="section-search-input" type="search" placeholder="Search by title, journal or author" />
+        <button class="btn btn-primary" type="submit">Search</button>
+        <button class="btn btn-outline" id="section-search-clear" type="button">Clear</button>
+      </form>
+
+      <section class="item-list" id="item-list"></section>
+      <div class="pager">
+        <button class="btn btn-outline" id="prev-page" type="button">Prev</button>
+        <span id="page-info"></span>
+        <button class="btn btn-outline" id="next-page" type="button">Next</button>
+      </div>
+    </main>
+
+    <script type="module">
+      import {
+        assetUrl,
+        escapeHtml,
+        mapQuestionnaire,
+        mapResearch,
+        pageUrl,
+        supabase,
+      } from "./supabase-client.js";
+
+      const query = new URLSearchParams(window.location.search);
+      const type = ["frontier", "results", "questionnaires"].includes(query.get("type"))
+        ? query.get("type")
+        : "frontier";
+      const typeMap = {
+        frontier: {
+          title: "Frontier Literature on PACD",
+          desc: "Verified literature selected for relevance to PACD collaboration.",
+        },
+        results: {
+          title: "Club members latest publications",
+          desc: "Peer-reviewed outputs from PACD members and collaborating teams.",
+        },
+        questionnaires: {
+          title: "Active Research Questionnaires",
+          desc: "Approved participation opportunities for active studies.",
+        },
+      };
+
+      const listNode = document.getElementById("item-list");
+      const pageInfo = document.getElementById("page-info");
+      const prevButton = document.getElementById("prev-page");
+      const nextButton = document.getElementById("next-page");
+      const searchInput = document.getElementById("section-search-input");
+      document.getElementById("section-title").textContent = typeMap[type].title;
+      document.getElementById("section-desc").textContent = typeMap[type].desc;
+
+      let page = 1;
+      const pageSize = 10;
+      let searchTerm = query.get("q") || "";
+      let total = 0;
+      searchInput.value = searchTerm;
+
+      function renderItem(item) {
+        const link =
+          type === "questionnaires" && item.linkUrl
+            ? item.linkUrl
+            : item.doiUrl ||
+              pageUrl(`item.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}`);
+        const external = /^https?:\/\//i.test(link);
+        const image = item.imageUrl || assetUrl("assets/home-1-logo.jpg");
+
+        if (type === "questionnaires") {
+          return `
+            <article class="detail-card">
+              <a href="${escapeHtml(link)}" ${external ? 'target="_blank" rel="noreferrer noopener"' : ""}>
+                <img src="${escapeHtml(image)}" alt="${escapeHtml(item.title)}" />
+              </a>
+              <div class="meta-block">
+                <h3><a class="panel-link" href="${escapeHtml(link)}" ${external ? 'target="_blank" rel="noreferrer noopener"' : ""}>${escapeHtml(item.title)}</a></h3>
+                <div class="meta">Estimated time: ${escapeHtml(item.estimatedTime || "—")}</div>
+                <div class="meta">Audience: ${escapeHtml(item.audience || "—")}</div>
+                <div class="meta">Participation: ${escapeHtml(item.isPaid === "Yes" ? "Compensated" : "Voluntary")}</div>
+              </div>
+            </article>
+          `;
+        }
+
+        return `
+          <article class="detail-card">
+            <a href="${escapeHtml(link)}" ${external ? 'target="_blank" rel="noreferrer noopener"' : ""}>
+              <img src="${escapeHtml(image)}" alt="${escapeHtml(item.title)}" />
+            </a>
+            <div class="meta-block">
+              <h3><a class="panel-link" href="${escapeHtml(link)}" ${external ? 'target="_blank" rel="noreferrer noopener"' : ""}>${escapeHtml(item.title)}</a></h3>
+              <div class="meta">Journal: ${escapeHtml(item.journal || "—")}</div>
+              <div class="meta">Quartile: ${escapeHtml(item.quartile || "Not specified")}</div>
+              <div class="meta">Lead authors / team: ${escapeHtml(item.authorsTeam || "—")}</div>
+            </div>
+          </article>
+        `;
+      }
+
+      async function loadItems() {
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize - 1;
+        let request;
+
+        if (type === "questionnaires") {
+          request = supabase
+            .from("questionnaires")
+            .select("*", { count: "exact" })
+            .order("published_at", { ascending: false });
+          if (searchTerm) {
+            request = request.or(
+              `title.ilike.%${searchTerm}%,research_name.ilike.%${searchTerm}%,audience.ilike.%${searchTerm}%`,
+            );
+          }
+        } else {
+          request = supabase
+            .from("research_items")
+            .select("*", { count: "exact" })
+            .eq("section", type)
+            .order("published_at", { ascending: false });
+          if (searchTerm) {
+            request = request.or(
+              `title.ilike.%${searchTerm}%,journal.ilike.%${searchTerm}%,authors_team.ilike.%${searchTerm}%`,
+            );
+          }
+        }
+
+        const { data, count, error } = await request.range(start, end);
+        if (error) throw error;
+        total = count || 0;
+        const items =
+          type === "questionnaires"
+            ? (data || []).map(mapQuestionnaire)
+            : (data || []).map(mapResearch);
+
+        listNode.innerHTML = items.length
+          ? items.map(renderItem).join("")
+          : "<p>No verified public entries found.</p>";
+        pageInfo.textContent = `Page ${page} · Total ${total}`;
+        prevButton.disabled = page <= 1;
+        nextButton.disabled = end + 1 >= total;
+      }
+
+      prevButton.addEventListener("click", async () => {
+        if (page > 1) {
+          page -= 1;
+          await loadItems();
+        }
+      });
+      nextButton.addEventListener("click", async () => {
+        if (page * pageSize < total) {
+          page += 1;
+          await loadItems();
+        }
+      });
+      document.getElementById("section-search-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        searchTerm = searchInput.value.trim().replaceAll(",", " ");
+        page = 1;
+        await loadItems();
+      });
+      document.getElementById("section-search-clear").addEventListener("click", async () => {
+        searchInput.value = "";
+        searchTerm = "";
+        page = 1;
+        await loadItems();
+      });
+
+      loadItems().catch((error) => {
+        listNode.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+      });
+    </script>
+  </body>
+</html>

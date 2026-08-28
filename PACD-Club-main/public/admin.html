@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PACD Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Founder / Admin Portal</span>
+      </div>
+    </header>
+
+    <main class="container subpage">
+      <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+      <h1>PACD Founder Console</h1>
+      <p class="desc">
+        Publish verified research content, manage questionnaires and review collaboration applications.
+      </p>
+
+      <section class="card" id="access-message">
+        <p>Verifying administrator access…</p>
+      </section>
+
+      <section id="admin-content" style="display: none;">
+        <div class="admin-grid">
+          <article class="card">
+            <h3>Dashboard</h3>
+            <div class="stats-grid" id="stats-grid"></div>
+            <div class="inline-form" style="margin-top: 0.8rem;">
+              <button class="btn btn-outline" id="refresh-stats" type="button">Refresh</button>
+              <button class="btn btn-outline" id="logout-btn" type="button">Sign out</button>
+            </div>
+          </article>
+
+          <article class="card">
+            <h3>Publish research content</h3>
+            <form id="research-form">
+              <div class="form-grid">
+                <label>Section
+                  <select name="section" required>
+                    <option value="frontier">Frontier literature</option>
+                    <option value="results">Member publication</option>
+                  </select>
+                </label>
+                <label>Title<input name="title" required /></label>
+                <label>Journal<input name="journal" required /></label>
+                <label>Quartile
+                  <select name="quartile">
+                    <option value="">Not specified</option>
+                    <option>Q1</option>
+                    <option>Q2</option>
+                    <option>Q3</option>
+                    <option>Q4</option>
+                  </select>
+                </label>
+                <label>Impact factor<input name="impactFactor" type="number" min="0" step="0.01" /></label>
+                <label>Publication / DOI URL<input name="doiUrl" type="url" required /></label>
+                <label class="span-2">Lead authors / team<input name="authorsTeam" required /></label>
+                <label class="span-2">Short summary<textarea name="summary" rows="3"></textarea></label>
+                <label class="span-2">Image URL<input name="imageUrl" type="url" placeholder="Optional external image URL" /></label>
+                <label class="span-2">Or upload image<input name="image" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                <label class="span-2"><input name="published" type="checkbox" checked /> Publish immediately</label>
+              </div>
+              <div class="dialog-actions">
+                <button class="btn btn-primary" type="submit">Save research entry</button>
+              </div>
+            </form>
+          </article>
+        </div>
+
+        <article class="card" style="margin-top: 1rem;">
+          <h3>Publish questionnaire</h3>
+          <form id="questionnaire-form">
+            <div class="form-grid">
+              <label class="span-2">Research name<input name="researchName" required /></label>
+              <label class="span-2">Main audience<input name="audience" required /></label>
+              <label class="span-2">Questionnaire introduction<textarea name="introText" rows="3" required></textarea></label>
+              <label>Estimated time<input name="estimatedTime" placeholder="e.g. 5 min" /></label>
+              <label>Paid?
+                <select name="isPaid">
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </label>
+              <label class="span-2">Questionnaire link<input name="linkUrl" type="url" /></label>
+              <label class="span-2">Contact information<input name="contactInfo" /></label>
+              <label class="span-2">Cover image<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <label class="span-2">QR image<input name="qrImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <label class="span-2"><input name="helpUs" type="checkbox" /> Highlight on home page</label>
+              <label class="span-2"><input name="published" type="checkbox" checked /> Publish immediately</label>
+            </div>
+            <div class="dialog-actions">
+              <button class="btn btn-primary" type="submit">Save questionnaire</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card" style="margin-top: 1rem;">
+          <div class="section-headline-row">
+            <h3>Collaboration applications</h3>
+            <button class="btn btn-outline" id="refresh-applications" type="button">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Applicant</th>
+                  <th>Institution</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Proposal</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="application-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        escapeHtml,
+        pageUrl,
+        requireAdmin,
+        supabase,
+      } from "./supabase-client.js";
+
+      const accessMessage = document.getElementById("access-message");
+      const adminContent = document.getElementById("admin-content");
+      const statsNode = document.getElementById("stats-grid");
+      const tableNode = document.getElementById("application-table");
+
+      async function ensureAdminAccess() {
+        if (await requireAdmin()) {
+          accessMessage.style.display = "none";
+          adminContent.style.display = "";
+          return true;
+        }
+        window.location.replace(pageUrl("admin-login.html"));
+        return false;
+      }
+
+      async function uploadPublicImage(file, folder) {
+        if (!file || file.size === 0) return "";
+        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+          throw new Error("Only PNG, JPEG and WebP images are allowed.");
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error("Images must be 5 MB or smaller.");
+        }
+
+        const extension = file.name.split(".").pop().toLowerCase();
+        const path = `${folder}/${crypto.randomUUID()}.${extension}`;
+        const { error } = await supabase.storage
+          .from("public-media")
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw error;
+        return `public-media/${path}`;
+      }
+
+      async function loadStats() {
+        const [applications, pending, research, questionnaires] = await Promise.all([
+          supabase.from("applications").select("*", { count: "exact", head: true }),
+          supabase.from("applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("research_items").select("*", { count: "exact", head: true }),
+          supabase.from("questionnaires").select("*", { count: "exact", head: true }),
+        ]);
+        const error = [applications.error, pending.error, research.error, questionnaires.error].find(Boolean);
+        if (error) throw error;
+
+        statsNode.innerHTML = `
+          <div class="stat"><div class="tiny">Applications</div><b>${applications.count || 0}</b></div>
+          <div class="stat"><div class="tiny">Pending</div><b>${pending.count || 0}</b></div>
+          <div class="stat"><div class="tiny">Research entries</div><b>${research.count || 0}</b></div>
+          <div class="stat"><div class="tiny">Questionnaires</div><b>${questionnaires.count || 0}</b></div>
+        `;
+      }
+
+      function applicationRow(item) {
+        const details = [
+          item.professional_role,
+          item.country_region,
+          (item.interests || []).join(", "),
+        ].filter(Boolean).map(escapeHtml).join("<br />");
+        return `
+          <tr>
+            <td><b>${escapeHtml(item.name)}</b><div class="tiny">${details}</div></td>
+            <td>${escapeHtml(item.institution)}</td>
+            <td>${escapeHtml(item.email)}</td>
+            <td><span class="badge ${escapeHtml(item.status)}">${escapeHtml(item.status.replace("_", " "))}</span></td>
+            <td>${escapeHtml(item.proposal)}${item.reviewer_notes ? `<div class="tiny"><b>Note:</b> ${escapeHtml(item.reviewer_notes)}</div>` : ""}</td>
+            <td>
+              <div class="application-actions">
+                <button class="btn btn-outline" type="button" data-id="${item.id}" data-status="approved">Approve</button>
+                <button class="btn btn-outline" type="button" data-id="${item.id}" data-status="more_information">Request info</button>
+                <button class="btn btn-outline" type="button" data-id="${item.id}" data-status="rejected">Reject</button>
+                ${item.cv_path ? `<button class="btn btn-outline" type="button" data-cv="${escapeHtml(item.cv_path)}">Open CV</button>` : ""}
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      async function loadApplications() {
+        const { data, error } = await supabase
+          .from("applications")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        tableNode.innerHTML = data.length
+          ? data.map(applicationRow).join("")
+          : '<tr><td colspan="6">No applications yet.</td></tr>';
+      }
+
+      async function updateApplication(id, status) {
+        let reviewerNotes = null;
+        if (status === "more_information") {
+          reviewerNotes = window.prompt("What information should the applicant provide?")?.trim();
+          if (!reviewerNotes) return;
+        }
+        const { error } = await supabase
+          .from("applications")
+          .update({ status, reviewer_notes: reviewerNotes })
+          .eq("id", id);
+        if (error) throw error;
+        await supabase.functions
+          .invoke("application-email", {
+            body: { action: "status", applicationId: id },
+          })
+          .catch(() => {});
+        await Promise.all([loadStats(), loadApplications()]);
+      }
+
+      tableNode.addEventListener("click", async (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        button.disabled = true;
+        try {
+          if (button.dataset.id) {
+            await updateApplication(button.dataset.id, button.dataset.status);
+          } else if (button.dataset.cv) {
+            const { data, error } = await supabase.storage
+              .from("application-files")
+              .createSignedUrl(button.dataset.cv, 300);
+            if (error) throw error;
+            window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+          }
+        } catch (error) {
+          window.alert(error.message);
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      document.getElementById("research-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        try {
+          const fields = new FormData(form);
+          const uploaded = await uploadPublicImage(fields.get("image"), "research");
+          const published = fields.get("published") === "on";
+          const { error } = await supabase.from("research_items").insert({
+            section: fields.get("section"),
+            title: String(fields.get("title") || "").trim(),
+            journal: String(fields.get("journal") || "").trim(),
+            impact_factor: fields.get("impactFactor") || null,
+            quartile: fields.get("quartile") || null,
+            authors_team: String(fields.get("authorsTeam") || "").trim(),
+            image_url: uploaded || String(fields.get("imageUrl") || "").trim() || null,
+            doi_url: String(fields.get("doiUrl") || "").trim(),
+            summary: String(fields.get("summary") || "").trim() || null,
+            published,
+            published_at: published ? new Date().toISOString() : null,
+          });
+          if (error) throw error;
+          form.reset();
+          form.querySelector('[name="published"]').checked = true;
+          window.alert("Research entry saved.");
+          await loadStats();
+        } catch (error) {
+          window.alert(error.message);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      document.getElementById("questionnaire-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        try {
+          const fields = new FormData(form);
+          const [cover, qr] = await Promise.all([
+            uploadPublicImage(fields.get("coverImage"), "questionnaires"),
+            uploadPublicImage(fields.get("qrImage"), "questionnaires"),
+          ]);
+          const published = fields.get("published") === "on";
+          const { error } = await supabase.from("questionnaires").insert({
+            title: String(fields.get("researchName") || "").trim(),
+            research_name: String(fields.get("researchName") || "").trim(),
+            audience: String(fields.get("audience") || "").trim(),
+            intro_text: String(fields.get("introText") || "").trim(),
+            intro_image_url: cover || null,
+            image_url: cover || null,
+            qr_url: qr || null,
+            is_paid: fields.get("isPaid") === "true",
+            estimated_time: String(fields.get("estimatedTime") || "").trim() || null,
+            link_url: String(fields.get("linkUrl") || "").trim() || null,
+            contact_info: String(fields.get("contactInfo") || "").trim() || null,
+            highlight_url: cover || null,
+            help_us: fields.get("helpUs") === "on",
+            published,
+            published_at: published ? new Date().toISOString() : null,
+          });
+          if (error) throw error;
+          form.reset();
+          form.querySelector('[name="published"]').checked = true;
+          window.alert("Questionnaire saved.");
+          await loadStats();
+        } catch (error) {
+          window.alert(error.message);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      document.getElementById("refresh-stats").addEventListener("click", loadStats);
+      document.getElementById("refresh-applications").addEventListener("click", loadApplications);
+      document.getElementById("logout-btn").addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.replace(pageUrl("admin-login.html"));
+      });
+
+      if (await ensureAdminAccess()) {
+        try {
+          await Promise.all([loadStats(), loadApplications()]);
+        } catch (error) {
+          window.alert(error.message);
+        }
+      }
+    </script>
+  </body>
+</html>

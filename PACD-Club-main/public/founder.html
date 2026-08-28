@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Co-Founder | PACD Research Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Home &gt;&gt; Co-Founder Profile</span>
+      </div>
+    </header>
+
+    <main class="container subpage">
+      <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+      <h1 class="detail-page-title" id="page-title">Co-Founder Profile</h1>
+      <p class="desc" id="page-desc"></p>
+      <section class="detail-page-hero founder-detail-hero" id="detail-hero"></section>
+    </main>
+
+    <script type="module">
+      import {
+        assetUrl,
+        escapeHtml,
+        supabase,
+      } from "./supabase-client.js";
+
+      const id = new URLSearchParams(window.location.search).get("id");
+      const titleNode = document.getElementById("page-title");
+      const descNode = document.getElementById("page-desc");
+      const heroNode = document.getElementById("detail-hero");
+
+      async function loadFounder() {
+        if (!id) throw new Error("Missing founder id.");
+        const { data, error } = await supabase
+          .from("founders")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("Founder not found.");
+
+        titleNode.textContent = data.name;
+        descNode.textContent = data.institution;
+        heroNode.innerHTML = `
+          <div class="founder-detail-photo">
+            <img src="${escapeHtml(assetUrl(data.image_url))}" alt="${escapeHtml(data.name)}" />
+          </div>
+          <div class="founder-detail-info">
+            <div class="founder-detail-role">${escapeHtml(data.role)} | ${escapeHtml(data.institution)}</div>
+            <p class="founder-detail-bio">${escapeHtml(data.bio || "")}</p>
+          </div>
+        `;
+      }
+
+      loadFounder().catch((error) => {
+        descNode.textContent = error.message;
+        heroNode.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+      });
+    </script>
+  </body>
+</html>

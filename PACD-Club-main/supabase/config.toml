@@ -1,0 +1,24 @@
+project_id = "uxzxtbrflusqwvvxgzan"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+site_url = "https://pacdresearchclub.com"
+additional_redirect_urls = [
+  "https://pacdresearchclub.com/admin.html",
+  "https://pacdresearchclub.com/my-application.html",
+  "https://hannahlee0303.github.io/PACD-Club/admin.html",
+  "https://hannahlee0303.github.io/PACD-Club/my-application.html",
+  "http://localhost:3000/admin.html",
+  "http://localhost:3000/my-application.html"
+]
+enable_anonymous_sign_ins = true
+
+[functions.application-email]
+verify_jwt = true

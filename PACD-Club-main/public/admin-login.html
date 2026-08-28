@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PACD Admin Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Founder / Admin Login</span>
+      </div>
+    </header>
+
+    <main class="container login-page">
+      <section class="login-hero">
+        <div class="login-hero-copy">
+          <p class="login-kicker">Management Entrance</p>
+          <h1>PACD Research Club Admin Access</h1>
+          <p class="login-desc">
+            Approved editors use a secure email link to review applications and
+            publish verified research updates.
+          </p>
+          <p class="login-warning">
+            Access is restricted to approved PACD Research Club administrators.
+          </p>
+          <a class="panel-link" href="./">&lt;&lt; Back to Home</a>
+        </div>
+
+        <section class="card login-panel">
+          <h3>Admin sign-in</h3>
+          <p class="tiny">
+            Enter your approved administrator email. No password is stored by this website.
+          </p>
+          <div class="login-form-row">
+            <input id="admin-email" type="email" autocomplete="email" placeholder="Administrator email" />
+            <button class="btn btn-primary" id="login-btn" type="button">
+              Send secure link
+            </button>
+          </div>
+          <p class="tiny" id="login-message"></p>
+        </section>
+      </section>
+    </main>
+
+    <script type="module">
+      import { requireAdmin, siteUrl, supabase } from "./supabase-client.js";
+
+      const emailInput = document.getElementById("admin-email");
+      const message = document.getElementById("login-message");
+      const button = document.getElementById("login-btn");
+
+      async function redirectIfAuthorized() {
+        if (await requireAdmin()) {
+          window.location.replace("admin.html");
+          return true;
+        }
+        return false;
+      }
+
+      async function login() {
+        const email = emailInput.value.trim().toLowerCase();
+        if (!email) {
+          message.textContent = "Enter your approved administrator email.";
+          return;
+        }
+
+        button.disabled = true;
+        message.textContent = "Sending…";
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: siteUrl("admin-login.html"),
+            shouldCreateUser: true,
+          },
+        });
+        message.textContent = error
+          ? error.message
+          : "Check your inbox for the secure administrator sign-in link.";
+        button.disabled = false;
+      }
+
+      button.addEventListener("click", login);
+      emailInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") login();
+      });
+
+      supabase.auth.onAuthStateChange(() => {
+        window.setTimeout(redirectIfAuthorized, 0);
+      });
+      redirectIfAuthorized();
+    </script>
+  </body>
+</html>

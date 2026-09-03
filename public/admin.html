@@ -98,8 +98,9 @@
               </label>
               <label class="span-2">Questionnaire link<input name="linkUrl" type="url" /></label>
               <label class="span-2">Contact information<input name="contactInfo" /></label>
-              <label class="span-2">Cover image<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <label class="span-2">Cover image (upload a new file to replace it)<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
               <div class="span-2 tiny edit-file-note" id="questionnaire-current-cover"></div>
+              <label class="span-2 remove-media-option" id="remove-cover-option" hidden><input name="removeCover" type="checkbox" /> Remove current cover image</label>
               <label class="span-2">QR image<input name="qrImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
               <div class="span-2 tiny edit-file-note" id="questionnaire-current-qr"></div>
               <label class="span-2"><input name="helpUs" type="checkbox" /> Highlight on home page</label>
@@ -379,6 +380,7 @@
         document.getElementById("questionnaire-form-title").textContent = "Publish questionnaire";
         document.getElementById("questionnaire-current-cover").innerHTML = "";
         document.getElementById("questionnaire-current-qr").innerHTML = "";
+        document.getElementById("remove-cover-option").hidden = true;
         document.getElementById("cancel-questionnaire-edit").hidden = true;
         questionnaireForm.querySelector('button[type="submit"]').textContent = "Save questionnaire";
       }
@@ -422,9 +424,11 @@
         questionnaireForm.elements.namedItem("helpUs").checked = item.help_us;
         questionnaireForm.elements.namedItem("published").checked = item.published;
         document.getElementById("questionnaire-form-title").textContent = "Edit questionnaire";
-        document.getElementById("questionnaire-current-cover").innerHTML = item.image_url
-          ? `Current cover: ${fileLink(item.image_url, "Open cover")}. Choose a new upload to replace it.`
+        const currentCover = item.image_url || item.intro_image_url;
+        document.getElementById("questionnaire-current-cover").innerHTML = currentCover
+          ? `Current cover: ${fileLink(currentCover, "Open cover")}. Choose a new upload to replace it.`
           : "No cover image is currently attached.";
+        document.getElementById("remove-cover-option").hidden = !currentCover;
         document.getElementById("questionnaire-current-qr").innerHTML = item.qr_url
           ? `Current QR: ${fileLink(item.qr_url, "Open QR")}. Choose a new upload to replace it.`
           : "No QR image is currently attached.";
@@ -566,19 +570,21 @@
           ]);
           const published = fields.get("published") === "on";
           const currentCover = existing?.image_url || existing?.intro_image_url || null;
+          const removeCover = Boolean(recordId) && fields.get("removeCover") === "on";
+          const nextCover = cover || (removeCover ? null : currentCover);
           const payload = {
             title: String(fields.get("researchName") || "").trim(),
             research_name: String(fields.get("researchName") || "").trim(),
             audience: String(fields.get("audience") || "").trim(),
             intro_text: String(fields.get("introText") || "").trim(),
-            intro_image_url: cover || currentCover,
-            image_url: cover || currentCover,
+            intro_image_url: nextCover,
+            image_url: nextCover,
             qr_url: qr || existing?.qr_url || null,
             is_paid: fields.get("isPaid") === "true",
             estimated_time: String(fields.get("estimatedTime") || "").trim() || null,
             link_url: String(fields.get("linkUrl") || "").trim() || null,
             contact_info: String(fields.get("contactInfo") || "").trim() || null,
-            highlight_url: cover || existing?.highlight_url || currentCover,
+            highlight_url: cover || (removeCover ? null : existing?.highlight_url || currentCover),
             help_us: fields.get("helpUs") === "on",
             published,
             published_at: published
@@ -610,6 +616,18 @@
         if (button) editQuestionnaire(button.dataset.editQuestionnaire);
       });
 
+      questionnaireForm.elements.namedItem("coverImage").addEventListener("change", (event) => {
+        if (event.target.files?.length) {
+          questionnaireForm.elements.namedItem("removeCover").checked = false;
+        }
+      });
+
+      questionnaireForm.elements.namedItem("removeCover").addEventListener("change", (event) => {
+        if (event.target.checked) {
+          questionnaireForm.elements.namedItem("coverImage").value = "";
+        }
+      });
+
       document.getElementById("cancel-research-edit").addEventListener("click", resetResearchForm);
       document.getElementById("cancel-questionnaire-edit").addEventListener("click", resetQuestionnaireForm);
       document.getElementById("refresh-stats").addEventListener("click", loadStats);
@@ -636,3 +654,4 @@
     </script>
   </body>
 </html>
+

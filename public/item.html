@@ -59,9 +59,12 @@
           const item = mapQuestionnaire(data);
           titleNode.textContent = item.title || "Questionnaire";
           descNode.textContent = item.introText || item.audience || "";
+          const coverMarkup = item.imageUrl
+            ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" />`
+            : "";
           heroNode.innerHTML = `
             <div class="questionnaire-grid">
-              <img src="${escapeHtml(item.imageUrl || assetUrl("assets/survey-cover.png"))}" alt="${escapeHtml(item.title)}" />
+              ${coverMarkup}
               <div class="questionnaire-info">
                 <div class="meta"><strong>Research name:</strong> ${escapeHtml(item.researchName || item.title)}</div>
                 <div class="meta"><strong>Main audience:</strong> ${escapeHtml(item.audience || "—")}</div>
@@ -110,3 +113,4 @@
     </script>
   </body>
 </html>
+

@@ -43,8 +43,9 @@
           </article>
 
           <article class="card">
-            <h3>Publish research content</h3>
+            <h3 id="research-form-title">Publish research content</h3>
             <form id="research-form">
+              <input name="recordId" type="hidden" />
               <div class="form-grid">
                 <label>Section
                   <select name="section" required>
@@ -69,9 +70,11 @@
                 <label class="span-2">Short summary<textarea name="summary" rows="3"></textarea></label>
                 <label class="span-2">Image URL<input name="imageUrl" type="url" placeholder="Optional external image URL" /></label>
                 <label class="span-2">Or upload image<input name="image" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                <div class="span-2 tiny edit-file-note" id="research-current-file"></div>
                 <label class="span-2"><input name="published" type="checkbox" checked /> Publish immediately</label>
               </div>
               <div class="dialog-actions">
+                <button class="btn btn-outline" id="cancel-research-edit" type="button" hidden>Cancel edit</button>
                 <button class="btn btn-primary" type="submit">Save research entry</button>
               </div>
             </form>
@@ -79,8 +82,9 @@
         </div>
 
         <article class="card" style="margin-top: 1rem;">
-          <h3>Publish questionnaire</h3>
+          <h3 id="questionnaire-form-title">Publish questionnaire</h3>
           <form id="questionnaire-form">
+            <input name="recordId" type="hidden" />
             <div class="form-grid">
               <label class="span-2">Research name<input name="researchName" required /></label>
               <label class="span-2">Main audience<input name="audience" required /></label>
@@ -95,14 +99,63 @@
               <label class="span-2">Questionnaire link<input name="linkUrl" type="url" /></label>
               <label class="span-2">Contact information<input name="contactInfo" /></label>
               <label class="span-2">Cover image<input name="coverImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <div class="span-2 tiny edit-file-note" id="questionnaire-current-cover"></div>
               <label class="span-2">QR image<input name="qrImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <div class="span-2 tiny edit-file-note" id="questionnaire-current-qr"></div>
               <label class="span-2"><input name="helpUs" type="checkbox" /> Highlight on home page</label>
               <label class="span-2"><input name="published" type="checkbox" checked /> Publish immediately</label>
             </div>
             <div class="dialog-actions">
+              <button class="btn btn-outline" id="cancel-questionnaire-edit" type="button" hidden>Cancel edit</button>
               <button class="btn btn-primary" type="submit">Save questionnaire</button>
             </div>
           </form>
+        </article>
+
+        <article class="card" style="margin-top: 1rem;">
+          <div class="section-headline-row">
+            <h3>Research content records</h3>
+            <button class="btn btn-outline" id="refresh-research" type="button">Refresh</button>
+          </div>
+          <p class="tiny">All submitted research content is shown here, including drafts.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Section</th>
+                  <th>Status</th>
+                  <th>File / link</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="research-table"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card" style="margin-top: 1rem;">
+          <div class="section-headline-row">
+            <h3>Questionnaire records</h3>
+            <button class="btn btn-outline" id="refresh-questionnaires" type="button">Refresh</button>
+          </div>
+          <p class="tiny">All submitted questionnaires are shown here, including drafts.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Research name</th>
+                  <th>Audience</th>
+                  <th>Status</th>
+                  <th>Uploaded files</th>
+                  <th>Updated</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="questionnaire-table"></tbody>
+            </table>
+          </div>
         </article>
 
         <article class="card" style="margin-top: 1rem;">
@@ -141,6 +194,12 @@
       const adminContent = document.getElementById("admin-content");
       const statsNode = document.getElementById("stats-grid");
       const tableNode = document.getElementById("application-table");
+      const researchForm = document.getElementById("research-form");
+      const questionnaireForm = document.getElementById("questionnaire-form");
+      const researchTable = document.getElementById("research-table");
+      const questionnaireTable = document.getElementById("questionnaire-table");
+      let researchRecords = [];
+      let questionnaireRecords = [];
 
       async function ensureAdminAccess() {
         if (await requireAdmin()) {
@@ -171,21 +230,207 @@
       }
 
       async function loadStats() {
-        const [applications, pending, research, questionnaires] = await Promise.all([
+        const [applications, pending, research, questionnaires, visitorStats] = await Promise.all([
           supabase.from("applications").select("*", { count: "exact", head: true }),
           supabase.from("applications").select("*", { count: "exact", head: true }).eq("status", "pending"),
           supabase.from("research_items").select("*", { count: "exact", head: true }),
           supabase.from("questionnaires").select("*", { count: "exact", head: true }),
+          supabase.rpc("get_visitor_stats"),
         ]);
-        const error = [applications.error, pending.error, research.error, questionnaires.error].find(Boolean);
+        const error = [
+          applications.error,
+          pending.error,
+          research.error,
+          questionnaires.error,
+          visitorStats.error,
+        ].find(Boolean);
         if (error) throw error;
+
+        const visitorCounts = Object.fromEntries(
+          (visitorStats.data || []).map((item) => [
+            item.period_type,
+            Number(item.visitor_count || 0),
+          ]),
+        );
 
         statsNode.innerHTML = `
           <div class="stat"><div class="tiny">Applications</div><b>${applications.count || 0}</b></div>
           <div class="stat"><div class="tiny">Pending</div><b>${pending.count || 0}</b></div>
           <div class="stat"><div class="tiny">Research entries</div><b>${research.count || 0}</b></div>
           <div class="stat"><div class="tiny">Questionnaires</div><b>${questionnaires.count || 0}</b></div>
+          <div class="stat visitor-stat"><div class="tiny">Weekly visitors</div><b>${visitorCounts.week || 0}</b></div>
+          <div class="stat visitor-stat"><div class="tiny">Monthly visitors</div><b>${visitorCounts.month || 0}</b></div>
+          <div class="stat visitor-stat"><div class="tiny">Yearly visitors</div><b>${visitorCounts.year || 0}</b></div>
+          <div class="stat visitor-stat"><div class="tiny">All-time visitors</div><b>${visitorCounts.all || 0}</b></div>
         `;
+      }
+
+      function formatDate(value) {
+        if (!value) return "—";
+        return new Intl.DateTimeFormat("en", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }).format(new Date(value));
+      }
+
+      function publicFileUrl(value) {
+        if (!value) return "";
+        if (/^https?:\/\//i.test(value)) return value;
+        if (value.startsWith("public-media/")) {
+          return supabase.storage
+            .from("public-media")
+            .getPublicUrl(value.replace(/^public-media\//, "")).data.publicUrl;
+        }
+        return pageUrl(value);
+      }
+
+      function fileLink(value, label) {
+        const url = publicFileUrl(value);
+        return url
+          ? `<a class="panel-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+          : "—";
+      }
+
+      function publicationStatus(item) {
+        return item.published
+          ? '<span class="badge published">Published</span>'
+          : '<span class="badge draft">Draft</span>';
+      }
+
+      function researchRow(item) {
+        const section = item.section === "frontier" ? "Frontier literature" : "Member publication";
+        const links = [
+          item.image_url ? fileLink(item.image_url, "Image") : "",
+          item.doi_url ? fileLink(item.doi_url, "Publication") : "",
+        ].filter(Boolean).join(" · ") || "—";
+        return `
+          <tr>
+            <td><b>${escapeHtml(item.title)}</b><div class="tiny">${escapeHtml(item.journal || "")}</div></td>
+            <td>${escapeHtml(section)}</td>
+            <td>${publicationStatus(item)}</td>
+            <td>${links}</td>
+            <td>${escapeHtml(formatDate(item.updated_at))}</td>
+            <td><button class="btn btn-outline" type="button" data-edit-research="${item.id}">Edit</button></td>
+          </tr>
+        `;
+      }
+
+      function questionnaireRow(item) {
+        const files = [
+          item.image_url ? fileLink(item.image_url, "Cover") : "",
+          item.qr_url ? fileLink(item.qr_url, "QR") : "",
+          item.link_url ? fileLink(item.link_url, "Questionnaire") : "",
+        ].filter(Boolean).join(" · ") || "—";
+        return `
+          <tr>
+            <td><b>${escapeHtml(item.research_name || item.title)}</b></td>
+            <td>${escapeHtml(item.audience || "—")}</td>
+            <td>${publicationStatus(item)}</td>
+            <td>${files}</td>
+            <td>${escapeHtml(formatDate(item.updated_at))}</td>
+            <td><button class="btn btn-outline" type="button" data-edit-questionnaire="${item.id}">Edit</button></td>
+          </tr>
+        `;
+      }
+
+      async function loadResearchRecords() {
+        const { data, error } = await supabase
+          .from("research_items")
+          .select("*")
+          .order("updated_at", { ascending: false });
+        if (error) throw error;
+        researchRecords = data || [];
+        researchTable.innerHTML = researchRecords.length
+          ? researchRecords.map(researchRow).join("")
+          : '<tr><td colspan="6">No research content yet.</td></tr>';
+      }
+
+      async function loadQuestionnaireRecords() {
+        const { data, error } = await supabase
+          .from("questionnaires")
+          .select("*")
+          .order("updated_at", { ascending: false });
+        if (error) throw error;
+        questionnaireRecords = data || [];
+        questionnaireTable.innerHTML = questionnaireRecords.length
+          ? questionnaireRecords.map(questionnaireRow).join("")
+          : '<tr><td colspan="6">No questionnaires yet.</td></tr>';
+      }
+
+      function setField(form, name, value) {
+        form.elements.namedItem(name).value = value ?? "";
+      }
+
+      function resetResearchForm() {
+        researchForm.reset();
+        setField(researchForm, "recordId", "");
+        researchForm.elements.namedItem("published").checked = true;
+        document.getElementById("research-form-title").textContent = "Publish research content";
+        document.getElementById("research-current-file").innerHTML = "";
+        document.getElementById("cancel-research-edit").hidden = true;
+        researchForm.querySelector('button[type="submit"]').textContent = "Save research entry";
+      }
+
+      function resetQuestionnaireForm() {
+        questionnaireForm.reset();
+        setField(questionnaireForm, "recordId", "");
+        questionnaireForm.elements.namedItem("published").checked = true;
+        document.getElementById("questionnaire-form-title").textContent = "Publish questionnaire";
+        document.getElementById("questionnaire-current-cover").innerHTML = "";
+        document.getElementById("questionnaire-current-qr").innerHTML = "";
+        document.getElementById("cancel-questionnaire-edit").hidden = true;
+        questionnaireForm.querySelector('button[type="submit"]').textContent = "Save questionnaire";
+      }
+
+      function editResearch(id) {
+        const item = researchRecords.find((record) => record.id === id);
+        if (!item) return;
+        resetResearchForm();
+        setField(researchForm, "recordId", item.id);
+        setField(researchForm, "section", item.section);
+        setField(researchForm, "title", item.title);
+        setField(researchForm, "journal", item.journal);
+        setField(researchForm, "quartile", item.quartile);
+        setField(researchForm, "impactFactor", item.impact_factor);
+        setField(researchForm, "doiUrl", item.doi_url);
+        setField(researchForm, "authorsTeam", item.authors_team);
+        setField(researchForm, "summary", item.summary);
+        setField(researchForm, "imageUrl", /^https?:\/\//i.test(item.image_url || "") ? item.image_url : "");
+        researchForm.elements.namedItem("published").checked = item.published;
+        document.getElementById("research-form-title").textContent = "Edit research content";
+        document.getElementById("research-current-file").innerHTML = item.image_url
+          ? `Current file: ${fileLink(item.image_url, "Open image")}. Choose a new upload to replace it.`
+          : "No image is currently attached.";
+        document.getElementById("cancel-research-edit").hidden = false;
+        researchForm.querySelector('button[type="submit"]').textContent = "Update research entry";
+        researchForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function editQuestionnaire(id) {
+        const item = questionnaireRecords.find((record) => record.id === id);
+        if (!item) return;
+        resetQuestionnaireForm();
+        setField(questionnaireForm, "recordId", item.id);
+        setField(questionnaireForm, "researchName", item.research_name || item.title);
+        setField(questionnaireForm, "audience", item.audience);
+        setField(questionnaireForm, "introText", item.intro_text);
+        setField(questionnaireForm, "estimatedTime", item.estimated_time);
+        setField(questionnaireForm, "isPaid", String(Boolean(item.is_paid)));
+        setField(questionnaireForm, "linkUrl", item.link_url);
+        setField(questionnaireForm, "contactInfo", item.contact_info);
+        questionnaireForm.elements.namedItem("helpUs").checked = item.help_us;
+        questionnaireForm.elements.namedItem("published").checked = item.published;
+        document.getElementById("questionnaire-form-title").textContent = "Edit questionnaire";
+        document.getElementById("questionnaire-current-cover").innerHTML = item.image_url
+          ? `Current cover: ${fileLink(item.image_url, "Open cover")}. Choose a new upload to replace it.`
+          : "No cover image is currently attached.";
+        document.getElementById("questionnaire-current-qr").innerHTML = item.qr_url
+          ? `Current QR: ${fileLink(item.qr_url, "Open QR")}. Choose a new upload to replace it.`
+          : "No QR image is currently attached.";
+        document.getElementById("cancel-questionnaire-edit").hidden = false;
+        questionnaireForm.querySelector('button[type="submit"]').textContent = "Update questionnaire";
+        questionnaireForm.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
       function applicationRow(item) {
@@ -264,33 +509,41 @@
         }
       });
 
-      document.getElementById("research-form").addEventListener("submit", async (event) => {
+      researchForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
         const submit = form.querySelector('button[type="submit"]');
         submit.disabled = true;
         try {
           const fields = new FormData(form);
+          const recordId = String(fields.get("recordId") || "");
+          const existing = researchRecords.find((item) => item.id === recordId);
           const uploaded = await uploadPublicImage(fields.get("image"), "research");
           const published = fields.get("published") === "on";
-          const { error } = await supabase.from("research_items").insert({
+          const externalImage = String(fields.get("imageUrl") || "").trim();
+          const payload = {
             section: fields.get("section"),
             title: String(fields.get("title") || "").trim(),
             journal: String(fields.get("journal") || "").trim(),
             impact_factor: fields.get("impactFactor") || null,
             quartile: fields.get("quartile") || null,
             authors_team: String(fields.get("authorsTeam") || "").trim(),
-            image_url: uploaded || String(fields.get("imageUrl") || "").trim() || null,
+            image_url: uploaded || externalImage || existing?.image_url || null,
             doi_url: String(fields.get("doiUrl") || "").trim(),
             summary: String(fields.get("summary") || "").trim() || null,
             published,
-            published_at: published ? new Date().toISOString() : null,
-          });
+            published_at: published
+              ? existing?.published_at || new Date().toISOString()
+              : null,
+          };
+          const query = recordId
+            ? supabase.from("research_items").update(payload).eq("id", recordId)
+            : supabase.from("research_items").insert(payload);
+          const { error } = await query;
           if (error) throw error;
-          form.reset();
-          form.querySelector('[name="published"]').checked = true;
-          window.alert("Research entry saved.");
-          await loadStats();
+          resetResearchForm();
+          window.alert(recordId ? "Research entry updated." : "Research entry saved.");
+          await Promise.all([loadStats(), loadResearchRecords()]);
         } catch (error) {
           window.alert(error.message);
         } finally {
@@ -298,40 +551,48 @@
         }
       });
 
-      document.getElementById("questionnaire-form").addEventListener("submit", async (event) => {
+      questionnaireForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
         const submit = form.querySelector('button[type="submit"]');
         submit.disabled = true;
         try {
           const fields = new FormData(form);
+          const recordId = String(fields.get("recordId") || "");
+          const existing = questionnaireRecords.find((item) => item.id === recordId);
           const [cover, qr] = await Promise.all([
             uploadPublicImage(fields.get("coverImage"), "questionnaires"),
             uploadPublicImage(fields.get("qrImage"), "questionnaires"),
           ]);
           const published = fields.get("published") === "on";
-          const { error } = await supabase.from("questionnaires").insert({
+          const currentCover = existing?.image_url || existing?.intro_image_url || null;
+          const payload = {
             title: String(fields.get("researchName") || "").trim(),
             research_name: String(fields.get("researchName") || "").trim(),
             audience: String(fields.get("audience") || "").trim(),
             intro_text: String(fields.get("introText") || "").trim(),
-            intro_image_url: cover || null,
-            image_url: cover || null,
-            qr_url: qr || null,
+            intro_image_url: cover || currentCover,
+            image_url: cover || currentCover,
+            qr_url: qr || existing?.qr_url || null,
             is_paid: fields.get("isPaid") === "true",
             estimated_time: String(fields.get("estimatedTime") || "").trim() || null,
             link_url: String(fields.get("linkUrl") || "").trim() || null,
             contact_info: String(fields.get("contactInfo") || "").trim() || null,
-            highlight_url: cover || null,
+            highlight_url: cover || existing?.highlight_url || currentCover,
             help_us: fields.get("helpUs") === "on",
             published,
-            published_at: published ? new Date().toISOString() : null,
-          });
+            published_at: published
+              ? existing?.published_at || new Date().toISOString()
+              : null,
+          };
+          const query = recordId
+            ? supabase.from("questionnaires").update(payload).eq("id", recordId)
+            : supabase.from("questionnaires").insert(payload);
+          const { error } = await query;
           if (error) throw error;
-          form.reset();
-          form.querySelector('[name="published"]').checked = true;
-          window.alert("Questionnaire saved.");
-          await loadStats();
+          resetQuestionnaireForm();
+          window.alert(recordId ? "Questionnaire updated." : "Questionnaire saved.");
+          await Promise.all([loadStats(), loadQuestionnaireRecords()]);
         } catch (error) {
           window.alert(error.message);
         } finally {
@@ -339,7 +600,21 @@
         }
       });
 
+      researchTable.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-edit-research]");
+        if (button) editResearch(button.dataset.editResearch);
+      });
+
+      questionnaireTable.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-edit-questionnaire]");
+        if (button) editQuestionnaire(button.dataset.editQuestionnaire);
+      });
+
+      document.getElementById("cancel-research-edit").addEventListener("click", resetResearchForm);
+      document.getElementById("cancel-questionnaire-edit").addEventListener("click", resetQuestionnaireForm);
       document.getElementById("refresh-stats").addEventListener("click", loadStats);
+      document.getElementById("refresh-research").addEventListener("click", loadResearchRecords);
+      document.getElementById("refresh-questionnaires").addEventListener("click", loadQuestionnaireRecords);
       document.getElementById("refresh-applications").addEventListener("click", loadApplications);
       document.getElementById("logout-btn").addEventListener("click", async () => {
         await supabase.auth.signOut();
@@ -348,7 +623,12 @@
 
       if (await ensureAdminAccess()) {
         try {
-          await Promise.all([loadStats(), loadApplications()]);
+          await Promise.all([
+            loadStats(),
+            loadResearchRecords(),
+            loadQuestionnaireRecords(),
+            loadApplications(),
+          ]);
         } catch (error) {
           window.alert(error.message);
         }

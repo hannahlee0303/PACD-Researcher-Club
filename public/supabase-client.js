@@ -134,3 +134,34 @@ export async function requireAdmin() {
   return !error && data === true;
 }
 
+const VISITOR_ID_KEY = "pacd_anonymous_visitor_id_v1";
+
+function anonymousVisitorId() {
+  try {
+    const existing = window.localStorage.getItem(VISITOR_ID_KEY);
+    if (existing) return existing;
+    const visitorId = crypto.randomUUID();
+    window.localStorage.setItem(VISITOR_ID_KEY, visitorId);
+    return visitorId;
+  } catch {
+    return "";
+  }
+}
+
+export async function recordSiteVisit() {
+  const visitorId = anonymousVisitorId();
+  if (!visitorId) return;
+  await supabase.rpc("record_site_visit", { p_visitor_id: visitorId });
+}
+
+const isLocalPreview = ["localhost", "127.0.0.1"].includes(
+  window.location.hostname,
+);
+const isAdminPage = /\/(admin|admin-login)\.html$/i.test(
+  window.location.pathname,
+);
+
+if (!isLocalPreview && !isAdminPage) {
+  recordSiteVisit().catch(() => {});
+}
+

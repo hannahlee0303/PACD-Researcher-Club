@@ -30,14 +30,19 @@ node scripts/check-static.mjs
 
 ## Supabase deployment
 
-The initial schema and RLS policies are in
-`supabase/migrations/202607260001_initial.sql`.
+Database schema changes and RLS policies are in `supabase/migrations/`.
 
 ```bash
 supabase link --project-ref uxzxtbrflusqwvvxgzan
 supabase db push
 supabase functions deploy application-email
 ```
+
+The administrator dashboard lists research and questionnaire records, supports
+editing them and replacing their uploaded images, and reports deduplicated
+anonymous visitors for the current week, month, year and all time. Visitor
+statistics count one browser identifier once per reporting period rather than
+counting page views.
 
 Transactional status emails additionally require these project secrets:
 

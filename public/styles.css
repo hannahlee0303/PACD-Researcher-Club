@@ -995,7 +995,7 @@ dialog::backdrop {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.55rem;
 }
 
@@ -1008,6 +1008,22 @@ dialog::backdrop {
 .stat b {
   display: block;
   font-size: 1.2rem;
+}
+
+.visitor-stat {
+  background: #e7f4f7;
+  border: 1px solid #c8e1e8;
+}
+
+.edit-file-note {
+  background: #f2f8fa;
+  border-left: 3px solid var(--brand);
+  border-radius: 7px;
+  padding: 0.5rem 0.65rem;
+}
+
+.edit-file-note:empty {
+  display: none;
 }
 
 .table-wrap {
@@ -1042,6 +1058,16 @@ td {
 .approved {
   background: #e6f8f1;
   color: #1f7c5f;
+}
+
+.published {
+  background: #e6f8f1;
+  color: #1f7c5f;
+}
+
+.draft {
+  background: #eef1f4;
+  color: #566b77;
 }
 
 .rejected {

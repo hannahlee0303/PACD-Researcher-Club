@@ -97,8 +97,15 @@ function renderHelpSurveys(items) {
         item.highlightUrl ||
         itemPageLink("questionnaires", item);
       const detailLink = itemPageLink("questionnaires", item);
+      const coverMarkup = item.imageUrl
+        ? `<a class="help-survey-cover" href="${escapeHtml(
+            coverLink,
+          )}" target="_blank" rel="noreferrer noopener">
+            <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.title)}" />
+          </a>`
+        : "";
       return `
-        <article class="help-survey-card">
+        <article class="help-survey-card${item.imageUrl ? "" : " help-survey-card--without-cover"}">
           <div class="help-survey-copy">
             <a class="help-survey-title" href="${escapeHtml(
               coverLink,
@@ -114,13 +121,7 @@ function renderHelpSurveys(items) {
               detailLink,
             )}">Open questionnaire details</a>
           </div>
-          <a class="help-survey-cover" href="${escapeHtml(
-            coverLink,
-          )}" target="_blank" rel="noreferrer noopener">
-            <img src="${escapeHtml(
-              item.imageUrl || assetUrl("assets/survey-cover.png"),
-            )}" alt="${escapeHtml(item.title)}" />
-          </a>
+          ${coverMarkup}
           <div class="help-survey-qr-block">
             <div class="survey-note survey-note-top">scan with your phone</div>
             <img class="survey-qr" src="${escapeHtml(
@@ -339,3 +340,4 @@ bootHome().catch((error) => {
   renderRollingList(byId("questionnaires-list"), [], "questionnaires");
   setupActivityTicker([]);
 });
+

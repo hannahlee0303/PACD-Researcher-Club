@@ -735,7 +735,7 @@ a {
 }
 
 .activity-pop {
-  position: fixed;
+  position: absolute;
   top: 5.5rem;
   right: max(1.2rem, calc((100vw - 1160px) / 2));
   width: min(350px, calc(100% - 2rem));

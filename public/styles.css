@@ -510,6 +510,10 @@ a {
   box-shadow: var(--shadow);
 }
 
+.help-survey-card--without-cover {
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
+}
+
 .help-survey-title {
   display: inline-block;
   color: #173149;
@@ -535,6 +539,11 @@ a {
   height: auto;
   border-radius: 12px;
   display: block;
+}
+
+.remove-media-option {
+  color: #8a2f2f;
+  font-weight: 700;
 }
 
 .help-survey-qr-block {
@@ -1202,3 +1211,4 @@ td {
     font-size: clamp(2.35rem, 12vw, 3.3rem);
   }
 }
+

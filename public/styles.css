@@ -644,7 +644,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  animation: roll 22s linear infinite;
 }
 
 .roll-item {

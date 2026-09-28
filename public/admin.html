@@ -54,7 +54,7 @@
                   </select>
                 </label>
                 <label>Title<input name="title" required /></label>
-                <label>Journal<input name="journal" required /></label>
+                <label>Journal<input name="journal" /></label>
                 <label>Quartile
                   <select name="quartile">
                     <option value="">Not specified</option>
@@ -65,8 +65,8 @@
                   </select>
                 </label>
                 <label>Impact factor<input name="impactFactor" type="number" min="0" step="0.01" /></label>
-                <label>Publication / DOI URL<input name="doiUrl" type="url" required /></label>
-                <label class="span-2">Lead authors / team<input name="authorsTeam" required /></label>
+                <label>Publication / DOI URL<input name="doiUrl" type="url" /></label>
+                <label class="span-2">Lead authors / team<input name="authorsTeam" /></label>
                 <label class="span-2">Short summary<textarea name="summary" rows="3"></textarea></label>
                 <label class="span-2">Image URL<input name="imageUrl" type="url" placeholder="Optional external image URL" /></label>
                 <label class="span-2">Upload / replace image<input name="image" type="file" accept="image/png,image/jpeg,image/webp" /></label>
@@ -528,12 +528,12 @@
           const payload = {
             section: fields.get("section"),
             title: String(fields.get("title") || "").trim(),
-            journal: String(fields.get("journal") || "").trim(),
+            journal: String(fields.get("journal") || "").trim() || null,
             impact_factor: fields.get("impactFactor") || null,
             quartile: fields.get("quartile") || null,
-            authors_team: String(fields.get("authorsTeam") || "").trim(),
+            authors_team: String(fields.get("authorsTeam") || "").trim() || null,
             image_url: uploaded || externalImage || existing?.image_url || null,
-            doi_url: String(fields.get("doiUrl") || "").trim(),
+            doi_url: String(fields.get("doiUrl") || "").trim() || null,
             summary: String(fields.get("summary") || "").trim() || null,
             published,
             published_at: published

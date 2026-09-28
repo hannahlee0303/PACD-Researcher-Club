@@ -43,6 +43,23 @@
       const descNode = document.getElementById("page-desc");
       const heroNode = document.getElementById("detail-hero");
 
+      function externalResearchUrl(value) {
+        const candidate = String(value || "").trim();
+        if (!/^https?:\/\//i.test(candidate)) return "";
+        try {
+          const url = new URL(candidate);
+          if (
+            url.origin === window.location.origin &&
+            /^\/(?:admin|admin-login)\.html$/i.test(url.pathname)
+          ) {
+            return "";
+          }
+          return url.href;
+        } catch {
+          return "";
+        }
+      }
+
       async function loadItem() {
         if (!id || !["frontier", "results", "questionnaires"].includes(type)) {
           throw new Error("Missing or invalid item information.");
@@ -91,6 +108,8 @@
         if (error) throw error;
         if (!data) throw new Error("Research entry not found.");
         const item = mapResearch(data);
+        const publicationUrl = externalResearchUrl(item.doiUrl);
+        const coverUrl = externalResearchUrl(item.imageUrl);
         titleNode.textContent = item.title || "Research entry";
         descNode.textContent = item.journal || "";
         heroNode.innerHTML = `
@@ -101,7 +120,7 @@
             <div class="meta"><strong>Impact factor:</strong> ${escapeHtml(item.impactFactor || "Not specified")}</div>
             <div class="meta"><strong>Lead authors / team:</strong> ${escapeHtml(item.authorsTeam || "—")}</div>
             ${item.summary ? `<p>${escapeHtml(item.summary)}</p>` : ""}
-            ${item.doiUrl ? `<a class="panel-link" href="${escapeHtml(item.doiUrl)}" target="_blank" rel="noreferrer noopener">Open publication / DOI</a>` : ""}
+            ${publicationUrl ? `<a class="panel-link" href="${escapeHtml(publicationUrl)}" target="_blank" rel="noreferrer noopener">Open publication / DOI</a>` : coverUrl ? `<a class="panel-link" href="${escapeHtml(coverUrl)}" target="_blank" rel="noreferrer noopener">Open uploaded cover image</a>` : ""}
           </div>
         `;
       }

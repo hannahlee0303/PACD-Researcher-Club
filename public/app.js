@@ -18,6 +18,36 @@ function itemPageLink(type, item) {
   );
 }
 
+function externalResearchUrl(value) {
+  const candidate = String(value || "").trim();
+  if (!/^https?:\/\//i.test(candidate)) return "";
+
+  try {
+    const url = new URL(candidate);
+    if (
+      url.origin === window.location.origin &&
+      /^\/(?:admin|admin-login)\.html$/i.test(url.pathname)
+    ) {
+      return "";
+    }
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function researchItemLink(type, item) {
+  return (
+    externalResearchUrl(item.imageUrl) ||
+    externalResearchUrl(item.doiUrl) ||
+    itemPageLink(type, item)
+  );
+}
+
+function uniqueItems(items) {
+  return [...new Map((items || []).map((item) => [item.id, item])).values()];
+}
+
 function renderFeaturedCard(node, item, type) {
   if (!node) return;
 
@@ -29,9 +59,9 @@ function renderFeaturedCard(node, item, type) {
   }
 
   const link =
-    type === "questionnaires" && item.linkUrl
-      ? item.linkUrl
-      : item.doiUrl || itemPageLink(type, item);
+    type === "questionnaires"
+      ? item.linkUrl || itemPageLink(type, item)
+      : researchItemLink(type, item);
   const external = /^https?:\/\//i.test(link);
   node.href = link;
   node.target = external ? "_blank" : "_self";
@@ -54,11 +84,11 @@ function renderFeaturedCard(node, item, type) {
 function renderRollingList(node, items, type) {
   if (!node) return;
 
-  const rows = (items || []).map((item) => {
+  const rows = uniqueItems(items).map((item) => {
     const link =
-      type === "questionnaires" && item.linkUrl
-        ? item.linkUrl
-        : item.doiUrl || itemPageLink(type, item);
+      type === "questionnaires"
+        ? item.linkUrl || itemPageLink(type, item)
+        : researchItemLink(type, item);
     const external = /^https?:\/\//i.test(link);
     const meta =
       type === "questionnaires"
@@ -75,9 +105,7 @@ function renderRollingList(node, items, type) {
     return;
   }
 
-  node.innerHTML = `<div class="rolling-track">${rows
-    .concat(rows)
-    .join("")}</div>`;
+  node.innerHTML = `<div class="rolling-track">${rows.join("")}</div>`;
 }
 
 function renderHelpSurveys(items) {
@@ -272,6 +300,7 @@ async function bootHome() {
     supabase
       .from("research_items")
       .select("*")
+      .order("updated_at", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(14),
     supabase
@@ -287,23 +316,27 @@ async function bootHome() {
   ].find(Boolean);
   if (firstError) throw firstError;
 
-  const research = (researchResult.data || []).map(mapResearch);
+  const researchRows = uniqueItems(researchResult.data || []);
+  const research = researchRows.map(mapResearch);
   const questionnaires = (questionnaireResult.data || []).map(
     mapQuestionnaire,
   );
-  const frontier = research.filter((item) =>
-    researchResult.data.find(
-      (row) => row.id === item.id && row.section === "frontier",
-    ),
+  const frontierIds = new Set(
+    researchRows.filter((row) => row.section === "frontier").map((row) => row.id),
   );
-  const results = research.filter((item) =>
-    researchResult.data.find(
-      (row) => row.id === item.id && row.section === "results",
-    ),
+  const resultsIds = new Set(
+    researchRows.filter((row) => row.section === "results").map((row) => row.id),
   );
+  const frontier = research.filter((item) => frontierIds.has(item.id));
+  const results = research.filter((item) => resultsIds.has(item.id));
+  const latestFrontierWithImage = frontier.find((item) => item.imageUrl);
 
   renderHelpSurveys(questionnaires);
-  renderFeaturedCard(byId("frontier-featured"), frontier[0], "frontier");
+  renderFeaturedCard(
+    byId("frontier-featured"),
+    latestFrontierWithImage || frontier[0],
+    "frontier",
+  );
   renderFeaturedCard(byId("results-featured"), results[0], "results");
   renderFeaturedCard(
     byId("questionnaires-featured"),

@@ -38,8 +38,9 @@ function externalResearchUrl(value) {
 
 function researchItemLink(type, item) {
   return (
-    externalResearchUrl(item.imageUrl) ||
+    externalResearchUrl(item.pdfUrl) ||
     externalResearchUrl(item.doiUrl) ||
+    externalResearchUrl(item.imageUrl) ||
     itemPageLink(type, item)
   );
 }

@@ -109,6 +109,7 @@
         if (!data) throw new Error("Research entry not found.");
         const item = mapResearch(data);
         const publicationUrl = externalResearchUrl(item.doiUrl);
+        const pdfUrl = externalResearchUrl(item.pdfUrl);
         const coverUrl = externalResearchUrl(item.imageUrl);
         titleNode.textContent = item.title || "Research entry";
         descNode.textContent = item.journal || "";
@@ -120,7 +121,8 @@
             <div class="meta"><strong>Impact factor:</strong> ${escapeHtml(item.impactFactor || "Not specified")}</div>
             <div class="meta"><strong>Lead authors / team:</strong> ${escapeHtml(item.authorsTeam || "—")}</div>
             ${item.summary ? `<p>${escapeHtml(item.summary)}</p>` : ""}
-            ${publicationUrl ? `<a class="panel-link" href="${escapeHtml(publicationUrl)}" target="_blank" rel="noreferrer noopener">Open publication / DOI</a>` : coverUrl ? `<a class="panel-link" href="${escapeHtml(coverUrl)}" target="_blank" rel="noreferrer noopener">Open uploaded cover image</a>` : ""}
+            ${pdfUrl ? `<a class="panel-link" href="${escapeHtml(pdfUrl)}" target="_blank" rel="noreferrer noopener">Open uploaded PDF</a>` : ""}
+            ${publicationUrl ? `<a class="panel-link" href="${escapeHtml(publicationUrl)}" target="_blank" rel="noreferrer noopener">Open publication / DOI</a>` : !pdfUrl && coverUrl ? `<a class="panel-link" href="${escapeHtml(coverUrl)}" target="_blank" rel="noreferrer noopener">Open uploaded cover image</a>` : ""}
           </div>
         `;
       }

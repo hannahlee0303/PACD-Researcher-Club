@@ -90,6 +90,9 @@ export function mapResearch(row) {
     imageUrl: row.image_url?.startsWith("public-media/")
       ? publicMediaUrl(row.image_url.replace(/^public-media\//, ""))
       : assetUrl(row.image_url),
+    pdfUrl: row.pdf_url?.startsWith("public-media/")
+      ? publicMediaUrl(row.pdf_url.replace(/^public-media\//, ""))
+      : assetUrl(row.pdf_url),
     doiUrl: row.doi_url,
     summary: row.summary,
     createdAt: row.published_at ?? row.created_at,

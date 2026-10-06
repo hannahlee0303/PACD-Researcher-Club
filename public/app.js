@@ -18,6 +18,12 @@ function itemPageLink(type, item) {
   );
 }
 
+function researchReaderLink(type, item) {
+  return pageUrl(
+    `reader.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}`,
+  );
+}
+
 function externalResearchUrl(value) {
   const candidate = String(value || "").trim();
   if (!/^https?:\/\//i.test(candidate)) return "";
@@ -38,7 +44,7 @@ function externalResearchUrl(value) {
 
 function researchItemLink(type, item) {
   return (
-    externalResearchUrl(item.pdfUrl) ||
+    (externalResearchUrl(item.pdfUrl) && researchReaderLink(type, item)) ||
     externalResearchUrl(item.doiUrl) ||
     externalResearchUrl(item.imageUrl) ||
     itemPageLink(type, item)

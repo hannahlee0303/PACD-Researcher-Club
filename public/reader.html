@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Research paper | PACD Research Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="reader-body">
+    <header class="topbar">
+      <div class="container breadcrumb">
+        <img class="breadcrumb-logo" src="assets/clublogo.png" alt="PACD Research Club logo" />
+        <span class="breadcrumb-text">Home &gt;&gt; Research paper</span>
+      </div>
+    </header>
+
+    <main class="container reader-main">
+      <div class="reader-toolbar">
+        <a class="panel-link" id="reader-back" href="./">&lt;&lt; Back to research</a>
+        <a class="btn btn-outline" id="reader-download" href="#" target="_blank" rel="noopener noreferrer" hidden>Open original PDF</a>
+      </div>
+      <header class="reader-heading">
+        <p class="reader-kicker">PACD RESEARCH CLUB · PAPER READER</p>
+        <h1 id="reader-title">Loading paper…</h1>
+        <p id="reader-journal" class="reader-journal"></p>
+      </header>
+      <section class="reader-status" id="reader-status" role="status" aria-live="polite">Loading the paper…</section>
+      <section class="reader-pages" id="reader-pages" aria-label="Research paper pages"></section>
+    </main>
+
+    <script type="module" src="reader.js"></script>
+  </body>
+</html>
+

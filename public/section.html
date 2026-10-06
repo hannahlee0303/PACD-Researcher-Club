@@ -86,8 +86,10 @@
         const link =
           type === "questionnaires" && item.linkUrl
             ? item.linkUrl
-            : item.doiUrl ||
-              pageUrl(`item.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}`);
+            : item.pdfUrl
+              ? pageUrl(`reader.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}`)
+              : item.doiUrl ||
+                pageUrl(`item.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(item.id)}`);
         const external = /^https?:\/\//i.test(link);
         const image = item.imageUrl || assetUrl("assets/home-1-logo.jpg");
 

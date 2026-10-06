@@ -236,8 +236,9 @@
         if (file.size > 20 * 1024 * 1024) {
           throw new Error("PDF files must be 20 MB or smaller.");
         }
-        const hasPdfExtension = /\\.pdf$/i.test(file.name || "");
-        const header = await file.slice(0, 1024).text();
+        const hasPdfExtension = String(file.name || "").toLowerCase().endsWith(".pdf");
+        const headerBytes = await file.slice(0, 1024).arrayBuffer();
+        const header = new TextDecoder().decode(headerBytes);
         if (!hasPdfExtension || !header.includes("%PDF-")) {
           throw new Error("The selected file is not a valid PDF. Please choose a .pdf file.");
         }

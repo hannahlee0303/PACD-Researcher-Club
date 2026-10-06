@@ -233,11 +233,13 @@
 
       async function uploadResearchPdf(file) {
         if (!file || file.size === 0) return "";
-        if (file.type !== "application/pdf" || !/\\.pdf$/i.test(file.name)) {
-          throw new Error("Please choose a PDF file.");
-        }
         if (file.size > 20 * 1024 * 1024) {
           throw new Error("PDF files must be 20 MB or smaller.");
+        }
+        const hasPdfExtension = /\\.pdf$/i.test(file.name || "");
+        const header = await file.slice(0, 1024).text();
+        if (!hasPdfExtension || !header.includes("%PDF-")) {
+          throw new Error("The selected file is not a valid PDF. Please choose a .pdf file.");
         }
 
         const path = `research/${crypto.randomUUID()}.pdf`;
@@ -331,7 +333,10 @@
             <td>${publicationStatus(item)}</td>
             <td>${links}</td>
             <td>${escapeHtml(formatDate(item.updated_at))}</td>
-            <td><button class="btn btn-outline" type="button" data-edit-research="${item.id}">Edit</button></td>
+            <td><div class="record-actions">
+              <button class="btn btn-outline" type="button" data-edit-research="${item.id}">Edit</button>
+              <button class="btn btn-delete" type="button" data-delete-research="${item.id}">Delete</button>
+            </div></td>
           </tr>
         `;
       }
@@ -349,7 +354,10 @@
             <td>${publicationStatus(item)}</td>
             <td>${files}</td>
             <td>${escapeHtml(formatDate(item.updated_at))}</td>
-            <td><button class="btn btn-outline" type="button" data-edit-questionnaire="${item.id}">Edit</button></td>
+            <td><div class="record-actions">
+              <button class="btn btn-outline" type="button" data-edit-questionnaire="${item.id}">Edit</button>
+              <button class="btn btn-delete" type="button" data-delete-questionnaire="${item.id}">Delete</button>
+            </div></td>
           </tr>
         `;
       }
@@ -458,6 +466,66 @@
         document.getElementById("cancel-questionnaire-edit").hidden = false;
         questionnaireForm.querySelector('button[type="submit"]').textContent = "Update questionnaire";
         questionnaireForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function publicMediaObjectPath(value) {
+        const path = String(value || "").trim();
+        if (path.startsWith("public-media/")) {
+          return path.slice("public-media/".length);
+        }
+        try {
+          const url = new URL(path);
+          const marker = "/storage/v1/object/public/public-media/";
+          const markerIndex = url.pathname.indexOf(marker);
+          return markerIndex < 0
+            ? ""
+            : decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+        } catch {
+          return "";
+        }
+      }
+
+      async function deleteContentRecord(kind, id, button) {
+        const isResearch = kind === "research";
+        const records = isResearch ? researchRecords : questionnaireRecords;
+        const item = records.find((record) => String(record.id) === String(id));
+        if (!item) return;
+
+        const title = item.title || item.research_name || "this record";
+        if (!window.confirm(`Delete “${title}” and its uploaded files? This cannot be undone.`)) return;
+
+        button.disabled = true;
+        try {
+          const table = isResearch ? "research_items" : "questionnaires";
+          const { data, error } = await supabase
+            .from(table)
+            .delete()
+            .eq("id", id)
+            .select("id");
+          if (error) throw error;
+          if (!data?.length) throw new Error("The record was not deleted. Please refresh and try again.");
+
+          const mediaValues = isResearch
+            ? [item.image_url, item.pdf_url]
+            : [item.image_url, item.intro_image_url, item.qr_url, item.highlight_url];
+          const mediaPaths = [...new Set(mediaValues.map(publicMediaObjectPath).filter(Boolean))];
+          let mediaError = null;
+          if (mediaPaths.length) {
+            const result = await supabase.storage.from("public-media").remove(mediaPaths);
+            mediaError = result.error;
+          }
+
+          await Promise.all([loadStats(), isResearch ? loadResearchRecords() : loadQuestionnaireRecords()]);
+          window.alert(
+            mediaError
+              ? `The record was deleted, but one or more uploaded files could not be removed: ${mediaError.message}`
+              : `${isResearch ? "Research entry" : "Questionnaire"} deleted.`,
+          );
+        } catch (error) {
+          window.alert(error.message || "Unable to delete this record.");
+        } finally {
+          button.disabled = false;
+        }
       }
 
       function applicationRow(item) {
@@ -634,11 +702,21 @@
       });
 
       researchTable.addEventListener("click", (event) => {
+        const deleteButton = event.target.closest("[data-delete-research]");
+        if (deleteButton) {
+          deleteContentRecord("research", deleteButton.dataset.deleteResearch, deleteButton);
+          return;
+        }
         const button = event.target.closest("[data-edit-research]");
         if (button) editResearch(button.dataset.editResearch);
       });
 
       questionnaireTable.addEventListener("click", (event) => {
+        const deleteButton = event.target.closest("[data-delete-questionnaire]");
+        if (deleteButton) {
+          deleteContentRecord("questionnaire", deleteButton.dataset.deleteQuestionnaire, deleteButton);
+          return;
+        }
         const button = event.target.closest("[data-edit-questionnaire]");
         if (button) editQuestionnaire(button.dataset.editQuestionnaire);
       });

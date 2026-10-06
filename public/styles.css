@@ -284,6 +284,19 @@ a {
   color: var(--brand-deep);
 }
 
+.record-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.btn-delete {
+  background: #fff;
+  border: 1px solid #c86a6a;
+  color: #9b3030;
+}
+
 .hero-right img,
 .hero-logo {
   width: min(100%, 480px);
